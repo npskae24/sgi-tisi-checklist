@@ -23,6 +23,10 @@ The check is calendar dates on the phone, not a count of 365-day periods. Empty 
 
 Checked boxes are what move the progress bars. Dates do not.
 
+## Product screening
+
+From a case, open คัดกรองสินค้า. A case holds several products. The page only covers mandatory standards for imported goods, currently มอก. 2066 and มอก. 2067. Facts for each standard live in `src/standards/`. The result cards, the 4-unit exemption, and the dimension pass/fail come from those files. A flow rate outside the stated range says to confirm with สมอ. and is not treated as an exemption. Products are stored on the case and travel with the JSON export.
+
 ## Edit the wording
 
 Change labels, rules, and the footer in `src/checklist.ts` only. Keep the official sentences as written. Do not add fees or prices.
