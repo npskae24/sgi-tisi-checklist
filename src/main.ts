@@ -1,5 +1,7 @@
 import { footerNote, references, sections, type CheckItem } from './checklist'
 import { ageWarnings } from './rules'
+import { emptyProduct, productHtml, productListHtml, productTitle, type Product } from './screen'
+import { standardById } from './standards'
 import './style.css'
 
 const KEY = 'sgi-tisi-checklist'
@@ -17,12 +19,16 @@ type CaseFile = {
   customer: string
   notes: string
   items: Record<string, ItemState>
+  products: Product[]
 }
+
+type Screen = 'list' | 'case' | 'products' | 'product'
 
 type Db = {
   version: 1
   activeId: string
-  view: 'list' | 'case'
+  productId: string
+  view: Screen
   cases: CaseFile[]
 }
 
@@ -31,8 +37,9 @@ type Flash = { kind: 'ok' | 'err'; text: string }
 const allItems = sections.flatMap((section) => section.items)
 
 let db = load()
-let view: 'list' | 'case' = db.view
+let view: Screen = db.view
 let pendingDelete = false
+let pendingProduct = false
 let pendingImport: { cases: CaseFile[]; activeId: string } | null = null
 let flash: Flash | null = null
 
@@ -63,13 +70,36 @@ app.addEventListener('click', (event) => {
   if (action === 'confirm-delete') return removeCase()
   if (action === 'confirm-import') return applyImport()
   if (action === 'export') return exportJson()
+  if (action === 'products') return showProducts()
+  if (action === 'add-product') return addProduct()
+  if (action === 'open-product') return openProduct(el.dataset.id ?? '')
+  if (action === 'back-case') return openCase(db.activeId)
+  if (action === 'back-products') return showProducts()
+  if (action === 'delete-product') {
+    pendingProduct = true
+    render()
+    return
+  }
+  if (action === 'cancel-product') {
+    pendingProduct = false
+    render()
+    return
+  }
+  if (action === 'confirm-product') return removeProduct()
+  if (action === 'mark') return markProduct(el.dataset.check ?? '', el.dataset.value ?? '')
 })
 
 app.addEventListener('input', (event) => {
   const el = event.target
   if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return
-  const field = el.dataset.field
   const current = activeCase()
+  const product = activeProduct()
+  if (product && writeProduct(product, el)) {
+    save()
+    if (el instanceof HTMLInputElement && el.type !== 'date') render()
+    return
+  }
+  const field = el.dataset.field
   if (!current || (field !== 'customer' && field !== 'notes')) return
   current[field] = el.value
   save()
@@ -79,6 +109,12 @@ app.addEventListener('change', (event) => {
   const el = event.target
   if (el instanceof HTMLInputElement && el.type === 'file') {
     void onFile(el)
+    return
+  }
+  const product = activeProduct()
+  if (product && (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) && writeProduct(product, el)) {
+    save()
+    if (el instanceof HTMLSelectElement || el.type === 'date') render()
     return
   }
   if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) return
@@ -95,8 +131,9 @@ app.addEventListener('change', (event) => {
 })
 
 document.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape' || (!pendingDelete && !pendingImport)) return
+  if (event.key !== 'Escape' || (!pendingDelete && !pendingImport && !pendingProduct)) return
   pendingDelete = false
+  pendingProduct = false
   pendingImport = null
   render()
 })
@@ -109,7 +146,7 @@ function emptyItem(): ItemState {
 }
 
 function emptyDb(): Db {
-  return { version: 1, activeId: '', view: 'list', cases: [] }
+  return { version: 1, activeId: '', productId: '', view: 'list', cases: [] }
 }
 
 function load(): Db {
@@ -121,8 +158,16 @@ function load(): Db {
     if (!cases) return emptyDb()
     const activeId = readActiveId(parsed)
     const activeOk = cases.some((item) => item.id === activeId) ? activeId : ''
-    const storedView = isRecord(parsed) && parsed.view === 'case' && activeOk ? 'case' : 'list'
-    return { version: 1, activeId: activeOk, view: storedView, cases }
+    const productId = isRecord(parsed) && typeof parsed.productId === 'string' ? parsed.productId : ''
+    const file = cases.find((item) => item.id === activeOk)
+    const productOk = file?.products.some((item) => item.id === productId) ? productId : ''
+    return {
+      version: 1,
+      activeId: activeOk,
+      productId: productOk,
+      view: readView(parsed, activeOk, productOk),
+      cases,
+    }
   } catch {
     return emptyDb()
   }
@@ -139,6 +184,67 @@ function save(): void {
 
 function activeCase(): CaseFile | undefined {
   return db.cases.find((item) => item.id === db.activeId)
+}
+
+function activeProduct(): Product | undefined {
+  return activeCase()?.products.find((item) => item.id === db.productId)
+}
+
+function readView(parsed: unknown, activeId: string, productId: string): Screen {
+  if (!isRecord(parsed) || !activeId) return 'list'
+  if (parsed.view === 'case') return 'case'
+  if (parsed.view === 'products') return 'products'
+  if (parsed.view === 'product' && productId) return 'product'
+  if (parsed.view === 'product') return 'products'
+  return 'list'
+}
+
+const productFields = [
+  'standardId',
+  'typeId',
+  'flow',
+  'threadSize',
+  'hoseMm',
+  'hs',
+  'forSale',
+  'units',
+  'country',
+  'certificate',
+  'registered',
+  'inScope',
+  'qualityKind',
+  'qualityReceived',
+  'qualityExpiry',
+] as const
+
+function writeProduct(product: Product, el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): boolean {
+  const note = el.dataset.note
+  if (note) {
+    product.marks[`${note}:text`] = el.value
+    return true
+  }
+  const mat = el.dataset.mat
+  if (mat) {
+    product.marks[`${mat}:mat`] = el.value
+    return true
+  }
+  const mark = el.dataset.mark
+  if (mark && el.dataset.field !== 'hoseMm') {
+    product.marks[mark] = el.value
+    return true
+  }
+  const field = el.dataset.field as (typeof productFields)[number] | undefined
+  if (!field || !productFields.includes(field)) return false
+  if (field === 'standardId') {
+    product.standardId = el.value
+    const standard = standardById(el.value)
+    if (standard && !standard.types.some((item) => item.id === product.typeId)) {
+      product.typeId = standard.types[0]?.id ?? ''
+    }
+    return true
+  }
+  product[field] = el.value
+  return true
 }
 
 function itemState(file: CaseFile, id: string): ItemState {
@@ -182,7 +288,7 @@ function knownChoice(item: CheckItem, choice: string): string {
 }
 
 function createCase(): void {
-  const file: CaseFile = { id: crypto.randomUUID(), customer: '', notes: '', items: {} }
+  const file: CaseFile = { id: crypto.randomUUID(), customer: '', notes: '', items: {}, products: [] }
   db.cases.unshift(file)
   db.activeId = file.id
   pendingDelete = false
@@ -195,6 +301,7 @@ function createCase(): void {
 function openCase(id: string): void {
   db.activeId = id
   pendingDelete = false
+  pendingProduct = false
   view = 'case'
   save()
   render(false)
@@ -203,8 +310,54 @@ function openCase(id: string): void {
 function showList(): void {
   view = 'list'
   pendingDelete = false
+  pendingProduct = false
   save()
   render(false)
+}
+
+function showProducts(): void {
+  if (!activeCase()) return
+  view = 'products'
+  pendingProduct = false
+  save()
+  render(false)
+}
+
+function addProduct(): void {
+  const file = activeCase()
+  if (!file) return
+  const product = emptyProduct(crypto.randomUUID())
+  file.products.unshift(product)
+  db.productId = product.id
+  view = 'product'
+  save()
+  render(false)
+}
+
+function openProduct(id: string): void {
+  db.productId = id
+  view = 'product'
+  pendingProduct = false
+  save()
+  render(false)
+}
+
+function removeProduct(): void {
+  const file = activeCase()
+  if (file) file.products = file.products.filter((item) => item.id !== db.productId)
+  db.productId = ''
+  pendingProduct = false
+  view = 'products'
+  save()
+  render(false)
+}
+
+function markProduct(id: string, value: string): void {
+  const product = activeProduct()
+  if (!product || (value !== 'pass' && value !== 'fail')) return
+  product.marks[id] = value
+  save()
+  render()
 }
 
 function removeCase(): void {
@@ -268,13 +421,46 @@ function applyImport(): void {
   render(false)
 }
 
+function focusSelector(el: Element): string {
+  if (!(el instanceof HTMLElement)) return ''
+  const field = el.dataset.field
+  const spot = el.dataset.spot
+  if (field) return spot ? `[data-field="${field}"][data-spot="${spot}"]` : `[data-field="${field}"]`
+  if (el.dataset.mark) return `[data-mark="${CSS.escape(el.dataset.mark)}"]`
+  if (el.dataset.note) return `[data-note="${CSS.escape(el.dataset.note)}"]`
+  if (el.dataset.mat) return `[data-mat="${CSS.escape(el.dataset.mat)}"]`
+  return ''
+}
+
 function render(keepScroll = true): void {
-  if (view === 'case' && !activeCase()) view = 'list'
+  const active = document.activeElement
+  const selector = active ? focusSelector(active) : ''
+  const caret =
+    active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? active.selectionStart : null
+  if ((view === 'case' || view === 'products' || view === 'product') && !activeCase()) view = 'list'
+  if (view === 'product' && !activeProduct()) view = 'products'
   const y = keepScroll ? window.scrollY : 0
-  app!.innerHTML = `${view === 'list' ? listHtml() : caseHtml()}${dialogHtml()}`
+  const body =
+    view === 'list'
+      ? listHtml()
+      : view === 'case'
+        ? caseHtml()
+        : view === 'products'
+          ? productsShell()
+          : productShell()
+  app!.innerHTML = `${body}${dialogHtml()}`
   window.scrollTo(0, y)
-  if (pendingDelete || pendingImport) {
+  if (pendingDelete || pendingImport || pendingProduct) {
     document.querySelector<HTMLButtonElement>('.modal-card button')?.focus()
+    return
+  }
+  if (!selector) return
+  const next = document.querySelector(selector)
+  if (!(next instanceof HTMLElement)) return
+  next.focus()
+  if (caret != null && (next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement)) {
+    const pos = Math.min(caret, next.value.length)
+    next.setSelectionRange(pos, pos)
   }
 }
 
@@ -345,6 +531,7 @@ function caseHtml(): string {
       <label class="field"><span>บันทึก</span>
         <textarea name="notes" rows="2" data-field="notes" placeholder="บันทึกระหว่างคุย">${esc(file.notes)}</textarea>
       </label>
+      <button type="button" class="btn secondary" data-action="products">คัดกรองสินค้า${file.products.length ? ` (${file.products.length})` : ''}</button>
     </div>
     <p class="meta">ความคืบหน้า ${done} จาก ${allItems.length}</p>
     ${bar(done, allItems.length)}
@@ -437,7 +624,33 @@ function flashHtml(): string {
   return html
 }
 
+function productsShell(): string {
+  const file = activeCase()
+  if (!file) return ''
+  return productListHtml(file.products)
+}
+
+function productShell(): string {
+  const file = activeCase()
+  const product = activeProduct()
+  if (!file || !product) return ''
+  return productHtml(product, file.products, todayIso())
+}
+
 function dialogHtml(): string {
+  if (pendingProduct) {
+    const name = activeProduct() ? productTitle(activeProduct()!) : 'สินค้านี้'
+    return `<div class="modal" data-action="cancel-product">
+      <div class="modal-card" data-action="noop" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title">
+        <h2 id="dlg-title">ลบสินค้านี้?</h2>
+        <p>ลบ «${esc(name)}» ออกจากเคสนี้</p>
+        <div class="stack">
+          <button type="button" class="btn" data-action="cancel-product">ยกเลิก</button>
+          <button type="button" class="btn danger" data-action="confirm-product">ลบสินค้า</button>
+        </div>
+      </div>
+    </div>`
+  }
   if (pendingDelete) {
     const name = activeCase() ? displayName(activeCase()!) : ''
     return `<div class="modal" data-action="cancel-delete">
@@ -525,12 +738,63 @@ function parseCase(value: unknown): CaseFile | null {
       items[id] = parsed
     }
   }
+  const products: Product[] = []
+  if (value.products != null) {
+    if (!Array.isArray(value.products)) return null
+    for (const raw of value.products) {
+      const parsed = parseProduct(raw)
+      if (!parsed) return null
+      products.push(parsed)
+    }
+  }
   return {
     id: value.id,
     customer: typeof value.customer === 'string' ? value.customer : '',
     notes: typeof value.notes === 'string' ? value.notes : '',
     items,
+    products,
   }
+}
+
+function parseProduct(value: unknown): Product | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id) return null
+  const text = (key: string): string | null => {
+    const raw = value[key]
+    if (raw == null) return ''
+    return typeof raw === 'string' ? raw : null
+  }
+  const fields = [
+    'standardId',
+    'typeId',
+    'flow',
+    'threadSize',
+    'hoseMm',
+    'hs',
+    'forSale',
+    'units',
+    'country',
+    'certificate',
+    'registered',
+    'inScope',
+    'qualityKind',
+    'qualityReceived',
+    'qualityExpiry',
+  ] as const
+  const picked: Record<string, string> = {}
+  for (const key of fields) {
+    const raw = text(key)
+    if (raw == null) return null
+    picked[key] = key === 'qualityReceived' || key === 'qualityExpiry' ? dateOrEmpty(raw) : raw
+  }
+  const marks: Record<string, string> = {}
+  if (value.marks != null) {
+    if (!isRecord(value.marks)) return null
+    for (const [key, raw] of Object.entries(value.marks)) {
+      if (typeof raw !== 'string') return null
+      marks[key] = raw
+    }
+  }
+  return { id: value.id, ...picked, marks } as Product
 }
 
 function parseItem(value: unknown): ItemState | null {

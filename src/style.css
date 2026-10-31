@@ -373,3 +373,47 @@ h2 {
 @media (min-width: 480px) {
   .dates { grid-template-columns: 1fr 1fr; }
 }
+
+.result, .dim {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--card);
+}
+
+.result h3 { margin: 0 0 6px; font-size: 1.05rem; }
+
+.result p { margin: 0 0 8px; }
+
+.result.ok { background: #e7f2ec; border-color: #8fbfa8; }
+
+.result.stop { background: #fff4cc; border-color: #e0c36a; }
+
+.result.need { background: #e7eef8; border-color: #8eadd4; }
+
+.advice {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4cc;
+  color: #5c4308;
+  font-weight: 700;
+}
+
+.verdict { margin: 8px 0 0; font-weight: 700; }
+
+.verdict.pass { color: #1b4d3e; }
+
+.verdict.fail { color: #8f2d1f; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.btn.is-pass { background: var(--green); color: #fff; border-color: transparent; }
+
+.btn.is-fail { background: var(--danger); color: #fff; border-color: transparent; }
+
+.summary { margin: 0 0 12px; padding-left: 1.1rem; }
+
+.src { margin: 0; }
+
+.src a { font-weight: 700; }
