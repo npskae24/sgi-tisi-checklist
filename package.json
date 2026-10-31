@@ -1,0 +1,17 @@
+{
+  "name": "sgi-tisi-checklist",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "check": "node --experimental-strip-types src/rules.ts",
+    "build": "tsc --noEmit && node --experimental-strip-types src/rules.ts && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}
