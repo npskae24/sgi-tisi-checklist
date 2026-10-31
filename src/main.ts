@@ -372,12 +372,15 @@ function itemHtml(file: CaseFile, item: CheckItem): string {
     item.ageChoices && !choice && state.received
       ? '<p class="hint">เลือกประเภทเอกสาร เพื่อเทียบอายุตามเกณฑ์</p>'
       : ''
+  const cautionText = item.ageChoices?.find((option) => option.id === choice)?.caution ?? ''
+  const caution = cautionText ? `<p class="caution" role="status">${esc(cautionText)}</p>` : ''
   const picker = item.ageChoices
     ? `<label class="field"><span>ประเภทเอกสารที่ใช้</span><select data-item="${esc(item.id)}" data-field="choice">${choiceOptions(item, choice)}</select></label>`
     : ''
   const warnClass = warns ? ' is-warn' : ''
+  const cautionClass = caution ? ' is-caution' : ''
   const doneClass = state.done ? ' is-done' : ''
-  return `<article class="item${doneClass}${warnClass}">
+  return `<article class="item${doneClass}${warnClass}${cautionClass}">
     <label class="check">
       <input type="checkbox" data-item="${esc(item.id)}" data-field="done"${state.done ? ' checked' : ''} />
       <span class="check-text">${esc(item.label)}${chips}</span>
@@ -391,7 +394,7 @@ function itemHtml(file: CaseFile, item: CheckItem): string {
         <input type="date" data-item="${esc(item.id)}" data-field="expiry" value="${esc(state.expiry)}" />
       </label>
     </div>
-    ${hint}${warns}
+    ${hint}${caution}${warns}
   </article>`
 }
 

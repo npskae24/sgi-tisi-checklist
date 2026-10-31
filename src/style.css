@@ -322,6 +322,17 @@ h2 {
 
 .hint { margin: 8px 0 0; }
 
+.caution {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4cc;
+  color: #5c4308;
+  font-weight: 700;
+}
+
+.item.is-caution { border-color: #e0c36a; background: #fffdf6; }
+
 .modal {
   position: fixed;
   inset: 0;

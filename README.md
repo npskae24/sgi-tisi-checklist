@@ -18,7 +18,7 @@ The check is calendar dates on the phone, not a count of 365-day periods. Empty 
 
 - **Expiry.** If the expiry date is earlier than today, the item shows `เตือน: วันหมดอายุผ่านมาแล้ว`. The expiry day itself is still valid.
 - **Max age.** A line that says `ไม่เกิน N ปี` sets `maxAgeYears` and a `rule` string. The rule is shown beside the item. If the received date is strictly earlier than the same month and day N years ago, the item shows `เตือน: วันที่ได้รับเก่ากว่าเกณฑ์` plus that rule. A document received exactly N years ago is still within `ไม่เกิน`.
-- **One line, several documents.** `ระบบคุณภาพโรงงาน อย่างใดอย่างหนึ่ง` is a single item because only one document is required. The chips always show the limits from that line (`ไม่เกิน 3 ปี` for a factory report, `ไม่เกิน 1 ปี` for a Letter of Conformance). Staff pick which document they hold, and the age check uses that limit. ISO 9001 has no max age in the source text, so only its expiry date is checked. Until a type is picked, a received date is not age-checked.
+- **One line, several documents.** `ระบบคุณภาพโรงงาน อย่างใดอย่างหนึ่ง` is a single item because only one document is required. The chips always show the limits from that line (`ไม่เกิน 3 ปี` for a factory report, `ไม่เกิน 1 ปี` for a Letter of Conformance). Staff pick which document they hold, and the age check uses that limit. ISO 9001 has no max age, so only its expiry date is checked, and selecting it shows the yellow caution from `checklist.ts`. Until a type is picked, a received date is not age-checked.
 - **29 Feb.** The cutoff keeps the day number. On 29 Feb, 28 Feb of the cutoff year counts as older.
 
 Checked boxes are what move the progress bars. Dates do not.
