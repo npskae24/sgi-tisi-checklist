@@ -61,6 +61,13 @@ type Rule = {
   metalMin?: number
 }
 
+/** Saved cases used type ids that the standards no longer list. */
+export function migrateTypeId(id: string): string {
+  if (id === 'hose') return 'shower-hose'
+  if (id === 'wash') return 'basin'
+  return id
+}
+
 export function judge(rule: Rule, marks: Record<string, string>, hoseMm: string): Judge {
   if (rule.mode === 'tick' || rule.mode === 'manual') {
     const mark = marks[rule.id]
@@ -117,6 +124,9 @@ function demo(): void {
     'metal length',
   )
   assert(judge({ id: 'b41', mode: 'tick' }, {}, '') === 'empty', 'unticked clause')
+  assert(migrateTypeId('hose') === 'shower-hose', 'old hose id')
+  assert(migrateTypeId('wash') === 'basin', 'old wash id')
+  assert(migrateTypeId('basin') === 'basin', 'current basin id')
   console.log('screen rules ok')
 }
 

@@ -10,6 +10,10 @@ export type ProductTypeDef = {
   hose: boolean
   /** Step 1 asks for a thread size on this type. */
   thread: boolean
+  /** Shown under the flow field. Not a pass/fail rule. */
+  note?: string
+  /** Scope is not settled, so dimension pass/fail is withheld. */
+  scopeUnclear?: boolean
 }
 
 export type DimCheck = {

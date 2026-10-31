@@ -1,6 +1,7 @@
 import { footerNote, references, sections, type CheckItem } from './checklist'
 import { ageWarnings } from './rules'
 import { emptyProduct, productHtml, productListHtml, productTitle, type Product } from './screen'
+import { migrateTypeId } from './screen-rules'
 import { standardById } from './standards'
 import './style.css'
 
@@ -786,6 +787,7 @@ function parseProduct(value: unknown): Product | null {
     if (raw == null) return null
     picked[key] = key === 'qualityReceived' || key === 'qualityExpiry' ? dateOrEmpty(raw) : raw
   }
+  picked.typeId = migrateTypeId(picked.typeId)
   const marks: Record<string, string> = {}
   if (value.marks != null) {
     if (!isRecord(value.marks)) return null

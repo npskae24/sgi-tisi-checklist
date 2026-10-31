@@ -20,18 +20,26 @@ export const tis2066: StandardDef = {
   ],
   types: [
     {
-      id: 'hose',
-      label: 'สายฉีดชำระ',
+      id: 'shower-hose',
+      label: 'ฝักบัวอาบน้ำสายอ่อน',
       flow: { kind: 'range', min: 0.5, max: 8, unit: 'ลิตร/นาที' },
       hose: true,
       thread: true,
     },
     {
       id: 'rigid',
-      label: 'ฝักบัวแบบแข็ง',
+      label: 'ฝักบัวอาบน้ำก้านแข็ง',
       flow: { kind: 'range', min: 0.5, max: 9, unit: 'ลิตร/นาที' },
       hose: false,
       thread: true,
+    },
+    {
+      id: 'bidet',
+      label: 'สายฉีดชำระ / ไม่แน่ใจว่าอยู่ในขอบข่าย',
+      flow: { kind: 'range', min: 0.5, max: 8, unit: 'ลิตร/นาที' },
+      hose: false,
+      thread: false,
+      scopeUnclear: true,
     },
   ],
   checks: [
@@ -39,21 +47,21 @@ export const tis2066: StandardDef = {
       id: 't4111',
       clause: '4.1.1.1',
       requirement: 'เกลียวหัวฉีดเป็น G1/2A หรือ G1/2B (ISO 228-1) หรือ R1/2 (ISO 7-1)',
-      types: ['hose'],
+      types: ['shower-hose'],
       mode: 'manual',
     },
     {
       id: 't4112type',
       clause: '4.1.1.2',
       requirement: 'เกลียวข้อต่อสายเป็น G1/2, Rc1/2 หรือ Rp1/2',
-      types: ['hose'],
+      types: ['shower-hose'],
       mode: 'manual',
     },
     {
       id: 't4112len',
       clause: '4.1.1.2',
       requirement: 'ความยาวเกลียวข้อต่อสาย ไม่น้อยกว่า 10.0 มม. ถ้าเป็นพลาสติก หรือ 7.5 มม. ถ้าเป็นโลหะ',
-      types: ['hose'],
+      types: ['shower-hose'],
       mode: 'length-by-material',
       plasticMin: 10,
       metalMin: 7.5,
@@ -79,7 +87,7 @@ export const tis2066: StandardDef = {
       id: 't42',
       clause: '4.2',
       requirement: 'ความยาวสายไม่น้อยกว่า 1,200 มม.',
-      types: ['hose'],
+      types: ['shower-hose'],
       mode: 'min',
       min: 1200,
       unit: 'มม.',
@@ -88,7 +96,7 @@ export const tis2066: StandardDef = {
       id: 't52',
       clause: '5.2',
       requirement: 'ปริมาตรน้ำที่วัดได้ต่างกันไม่เกิน 0.50 ลิตร ทดสอบที่ความดัน 0.10 MPa',
-      types: ['hose', 'rigid'],
+      types: ['shower-hose', 'rigid'],
       mode: 'max',
       max: 0.5,
       unit: 'ลิตร',
@@ -98,7 +106,7 @@ export const tis2066: StandardDef = {
   qualityNeed:
     'ต้องมีรายงานตรวจโรงงานจาก สมอ. หรือผู้ตรวจสอบที่ได้รับแต่งตั้ง อายุไม่เกิน 3 ปี หรือ Letter of Conformance อายุไม่เกิน 1 ปี',
   sampleNote:
-    'เก็บตัวอย่าง 1 ชุด (2 หน่วย) ต่อชนิดและรุ่น ห้องปฏิบัติการที่ได้รับแต่งตั้งทั้งหมดอยู่ในประเทศไทย ไม่มีระยะเวลาทดสอบอย่างเป็นทางการ',
+    'เก็บตัวอย่าง 1 ชุด (2 หน่วย) ต่อแบบและรุ่น (pr-161) ห้องปฏิบัติการที่ได้รับแต่งตั้งทั้งหมดอยู่ในประเทศไทย ไม่มีระยะเวลาทดสอบอย่างเป็นทางการ',
   sources: {
     hs: {
       label: 'บัญชีพิกัด มอก. 2066',

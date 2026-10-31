@@ -27,7 +27,7 @@ export function emptyProduct(id: string): Product {
   return {
     id,
     standardId: '2066',
-    typeId: 'hose',
+    typeId: 'shower-hose',
     flow: '',
     threadSize: '',
     hoseMm: '',
@@ -133,6 +133,7 @@ function step1(product: Product, type: ProductTypeDef | undefined): string {
       <label class="field"><span>อัตราการไหลที่ 0.10 MPa (${esc(flowUnit)})</span>
         <input inputmode="decimal" data-field="flow" value="${esc(product.flow)}" />
       </label>
+      ${type?.note ? `<p class="hint">${esc(type.note)}</p>` : ''}
       ${thread}
       ${hose}
       <label class="field"><span>HS code</span><input data-field="hs" value="${esc(product.hs)}" /></label>
@@ -176,12 +177,29 @@ function step2(
         sourceLink(standard.sources.hs),
       ),
     )
-    return `<section class="section" id="step-2"><h2>2. ผลคัดกรอง</h2><div class="stack">${cards.join('')}</div></section>`
   }
   if (hs === 'in') {
     cards.push(
       result('ok', 'พิกัดศุลกากร', `<p>พิกัดอยู่ในบัญชีของ ${esc(standard.title)}</p>`, sourceLink(standard.sources.hs)),
     )
+  }
+  if (type.scopeUnclear) {
+    cards.push(
+      result(
+        'stop',
+        'ขอบข่าย',
+        '<p>ต้องยืนยันขอบข่ายกับ สมอ. (e-Scope)</p>',
+        sourceLink(standard.sources.eScope),
+      ),
+    )
+    cards.push(result('need', 'มอ.5/1', `<p>${esc(mo51Note)}</p>`, sourceLink(standard.sources.criteria)))
+    cards.push(result('info', 'Permission No.', `<p>${esc(permissionNote)}</p>`, ''))
+    return `<section class="section" id="step-2"><h2>2. ผลคัดกรอง</h2><div class="stack">${cards.join('')}</div></section>`
+  }
+  if (hs === 'out') {
+    return `<section class="section" id="step-2"><h2>2. ผลคัดกรอง</h2><div class="stack">${cards.join('')}</div></section>`
+  }
+  if (hs === 'in') {
     const ask = scopeSelect(product)
     if (product.inScope === 'no') {
       cards.push(
@@ -210,14 +228,12 @@ function step2(
   if (flow == null) {
     cards.push(result('na', 'อัตราการไหล', '<p>ยังไม่กรอกอัตราการไหล</p>', sourceLink(standard.sources.fulltext)))
   } else if (inFlow(type.flow.kind === 'range' ? type.flow.min : null, type.flow.max, flow)) {
-    cards.push(
-      result(
-        'ok',
-        'อัตราการไหล',
-        `<p>ค่า ${esc(product.flow)} ${esc(type.flow.unit)} อยู่ในช่วง ${esc(range)} ที่ความดัน 0.10 MPa</p>`,
-        sourceLink(standard.sources.fulltext),
-      ),
-    )
+    const note = type.note ? `<p>${esc(type.note)}</p>` : ''
+    const sentence =
+      type.flow.kind === 'max'
+        ? `ค่า ${esc(product.flow)} ${esc(type.flow.unit)} อยู่ในเกณฑ์ไม่เกิน ${type.flow.max.toFixed(2)} ${esc(type.flow.unit)} ที่ความดัน 0.10 MPa`
+        : `ค่า ${esc(product.flow)} ${esc(type.flow.unit)} อยู่ในช่วง ${esc(range)} ที่ความดัน 0.10 MPa`
+    cards.push(result('ok', 'อัตราการไหล', `<p>${sentence}</p>${note}`, sourceLink(standard.sources.fulltext)))
   } else {
     cards.push(
       result(
@@ -290,6 +306,9 @@ function step3(product: Product, standard: StandardDef | undefined, today: strin
 }
 
 function step4(product: Product, standard: StandardDef | undefined, type: ProductTypeDef | undefined): string {
+  if (type?.scopeUnclear) {
+    return `<section class="section" id="step-4"><h2>4. เช็กมิติก่อนสั่งตัวอย่าง</h2><p>ต้องยืนยันขอบข่ายกับ สมอ. (e-Scope)</p></section>`
+  }
   const checks = (standard?.checks ?? []).filter((check) => type && check.types.includes(type.id))
   const rows = checks.map((check) => dimRow(product, check)).join('')
   const empty = checks.length ? '' : '<p class="hint">เลือกชนิดสินค้าก่อน</p>'
@@ -303,9 +322,11 @@ function step5(
   type: ProductTypeDef | undefined,
   today: string,
 ): string {
-  const checks = (standard?.checks ?? []).filter((check) => type && check.types.includes(type.id))
+  const checks = type?.scopeUnclear ? [] : (standard?.checks ?? []).filter((check) => type && check.types.includes(type.id))
   const judged = checks.map((check) => judge(check, product.marks, product.hoseMm))
-  const dim = !checks.length
+  const dim = type?.scopeUnclear
+    ? 'ต้องยืนยันขอบข่ายกับ สมอ. (e-Scope)'
+    : !checks.length
     ? 'ยังไม่ครบ'
     : judged.some((item) => item === 'fail')
       ? 'มีข้อที่ไม่ผ่าน'
@@ -342,6 +363,7 @@ function screenHeadline(
   type: ProductTypeDef | undefined,
 ): string {
   if (!standard || !type) return 'ยังไม่ครบ'
+  if (type.scopeUnclear) return 'ต้องยืนยันขอบข่ายกับ สมอ. (e-Scope)'
   const hs = hsListed(standard.hsCodes, product.hs)
   if (hs === 'empty') return 'ยังไม่ครบ'
   if (hs === 'out') return 'มาตรฐานนี้ไม่ใช้'
